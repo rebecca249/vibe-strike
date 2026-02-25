@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe-Strike: Antigravity Edition</title>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --grid-line: #1e1e26;
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff007a;
+            --text: #e0e0e6;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        h1 { font-weight: 200; letter-spacing: 4px; color: var(--neon-blue); text-transform: uppercase; }
+        #stats { margin-bottom: 20px; font-size: 1.2rem; opacity: 0.8; }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            gap: 1px;
+            background-color: var(--grid-line);
+            border: 2px solid var(--grid-line);
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: var(--bg);
+            cursor: crosshair;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .cell:hover { background-color: #16161d; }
+        .hit-body { background-color: #1a1a2e !important; color: var(--neon-blue); font-size: 10px; }
+        .hit-head { background-color: var(--neon-pink) !important; box-shadow: inset 0 0 10px #000; }
+        .miss { opacity: 0.2; }
+        #message { margin-top: 20px; height: 30px; color: var(--neon-pink); font-weight: bold; }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover { background: var(--neon-blue); color: var(--bg); }
+    </style>
+</head>
+<body>
+
+    <h1>Vibe-Strike</h1>
+    <div id="stats">Steps: <span id="step-count">0</span> | Planes Left: <span id="plane-count">3</span></div>
+    
+    <div id="grid"></div>
+
+    <div id="message"></div>
+    <button onclick="location.reload()">Reset Grid</button>
+
+    <script>
+        const GRID_SIZE = 15;
+        const gridElement = document.getElementById('grid');
+        const stepDisplay = document.getElementById('step-count');
+        const planeDisplay = document.getElementById('plane-count');
+        const messageDisplay = document.getElementById('message');
+
+        let steps = 0;
+        let planesDown = 0;
+        let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)); 
+        // 0: empty, 1: body, 2: head
+
+        function placePlane() {
+            const directions = ['up', 'down', 'left', 'right'];
+            let placed = false;
+
+            while (!placed) {
+                let r = Math.floor(Math.random() * GRID_SIZE);
+                let c = Math.floor(Math.random() * GRID_SIZE);
+                let dir = directions[Math.floor(Math.random() * 4)];
+
+                // Airplane Shape Logic (1-5-1-3)
+                let parts = [];
+                if (dir === 'up') {
+                    parts = [[r,c,2], [r+1,c-2,1], [r+1,c-1,1], [r+1,c,1], [r+1,c+1,1], [r+1,c+2,1], [r+2,c,1], [r+3,c-1,1], [r+3,c,1], [r+3,c+1,1]];
+                } else if (dir === 'down') {
+                    parts = [[r,c,2], [r-1,c-2,1], [r-1,c-1,1], [r-1,c,1], [r-1,c+1,1], [r-1,c+2,1], [r-2,c,1], [r-3,c-1,1], [r-3,c,1], [r-3,c+1,1]];
+                } else if (dir === 'left') {
+                    parts = [[r,c,2], [r-2,c+1,1], [r-1,c+1,1], [r,c+1,1], [r+1,c+1,1], [r+2,c+1,1], [r,c+2,1], [r-1,c+3,1], [r,c+3,1], [r+1,c+3,1]];
+                } else if (dir === 'right') {
+                    parts = [[r,c,2], [r-2,c-1,1], [r-1,c-1,1], [r,c-1,1], [r+1,c-1,1], [r+2,c-1,1], [r,c-2,1], [r-1,c-3,1], [r,c-3,1], [r+1,c-3,1]];
+                }
+
+                // Check collision & boundary
+                if (parts.every(([nr, nc]) => nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE && grid[nr][nc] === 0)) {
+                    parts.forEach(([nr, nc, type]) => grid[nr][nc] = type);
+                    placed = true;
+                }
+            }
+        }
+
+        // Initialize 3 planes
+        for (let i = 0; i < 3; i++) placePlane();
+
+        // Create HTML Grid
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+                cell.onclick = function() {
+                    if (this.classList.contains('hit-body') || this.classList.contains('hit-head') || planesDown === 3) return;
+                    
+                    steps++;
+                    stepDisplay.innerText = steps;
+                    const val = grid[r][c];
+
+                    if (val === 2) { // HEAD HIT
+                        this.classList.add('hit-head');
+                        planesDown++;
+                        planeDisplay.innerText = 3 - planesDown;
+                        messageDisplay.innerText = "DIRECT HIT! PLANE DESTROYED.";
+                        if (planesDown === 3) messageDisplay.innerText = "MISSION ACCOMPLISHED! ALL PLANES DOWN.";
+                    } else if (val === 1) { // BODY HIT
+                        this.classList.add('hit-body');
+                        this.innerText = "X";
+                        messageDisplay.innerText = "Hit the body... keep looking.";
+                    } else {
+                        this.classList.add('miss');
+                        messageDisplay.innerText = "Missed.";
+                    }
+                };
+                gridElement.appendChild(cell);
+            }
+        }
+    </script>
+</body>
+</html>
